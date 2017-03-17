@@ -1,0 +1,9 @@
+{
+    "autoload": {
+        "psr-4": {"Detikcom\\": "detikcom/pages/*"}
+    },
+
+    "require": {
+        "paquettg/php-html-parser": "^1.7"
+    }
+}
