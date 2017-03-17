@@ -1,2 +1,2 @@
 # api-cookpad
-Unofficial Cookpad API
+Unofficial Cookpad API for developer

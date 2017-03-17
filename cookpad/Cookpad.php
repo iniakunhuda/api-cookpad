@@ -41,7 +41,7 @@ class Cookpad
         return $data;
     }
 
-    public function all($page = 1, $limit = 0)
+    public function all($page = 1, $limit = 0, $random = false)
     {
         if(!is_int($page)) {
             $data['status']     = 500;
