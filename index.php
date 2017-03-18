@@ -9,6 +9,8 @@ $cookpad = new Cookpad(new \PHPHtmlParser\Dom);
 //}
 
 $cookpad->set('locate', 'id');
-echo $cookpad->all();
+//echo $cookpad->all();
+echo $cookpad->detail('resep/1453533');
 
-//var_dump($cookpad->tes()->innerHtml());
+//TODO: Detail Recooks not yet.
+//TODO: Search not yet.
