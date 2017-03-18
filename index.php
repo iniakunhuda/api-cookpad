@@ -9,7 +9,6 @@ $cookpad = new Cookpad(new \PHPHtmlParser\Dom);
 //}
 
 $cookpad->set('locate', 'id');
-$cookpad->locate;
-echo $cookpad->all(1);
+echo $cookpad->all();
 
 //var_dump($cookpad->tes()->innerHtml());
