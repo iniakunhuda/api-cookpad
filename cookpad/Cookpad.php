@@ -2,11 +2,11 @@
 
 class Cookpad
 {
-    public $locate = 'id';
+    public $locate = 'id', $search = "/cari";
 
     public $url;
 
-    private $dom;
+    private $dom, $version = 2017.3;
 
     public function __construct($phphtmlparser)
     {
@@ -30,6 +30,11 @@ class Cookpad
     public function set($var, $val)
     {
         $data = array();
+        if($val=="jp"){
+            $data['status'] = 500;
+            $data['message'] = "Sorry! Cookpad API v".$this->version." for Japan is not supported.";
+            die($this->toJson($data));
+        }
         if($this->$var) {
             if($this->$var = $val) {
                 $data['status']     = 200;
@@ -57,8 +62,8 @@ class Cookpad
      * @return string
      */
     public function all(
-        $page = 1,
-        $limit = 0,
+        $page   = 1,
+        $limit  = 0,
         $random = false
     )
     {
@@ -80,7 +85,7 @@ class Cookpad
 
         $data['status']     = 200;
         $data['url']        = $url;
-        $data['page']['last']   = ($page == 1) ? 1 : $page-1;
+        $data['page']['before']   = ($page == 1) ? 1 : $page-1;
         $data['page']['now']    = ($page == 1) ? 1 : $page;
         $data['page']['next']   = (int) explode('=', $pagination_href[1])[1]; // ex: ?page=2 -> 2
         $data['total']      = count($items);
@@ -107,7 +112,11 @@ class Cookpad
                     ? trim($item->find('.recipe__ingredients')->text) // not mansory
                     : "";
             $data['data'][$key]['duration'] =
-                (count($item->find('.icf--timer')) > 0) ? trim($item->find('li')->text) : 0;
+                (count($item->find('.icf--timer')) > 0)
+                    ? (trim($item->find('li')->text) == $data['data'][$key]['author'])
+                        ? trim($item->find('li')[1]->text)
+                        : trim($item->find('li')->text)
+                    : 0;
             $data['data'][$key]['portion'] =
                 (count($item->find('.icf--user')) > 0)
                     ? (trim($item->find('li')->text) == $data['data'][$key]['duration']) // diff time & portion
@@ -137,11 +146,9 @@ class Cookpad
      * @param string $target <url>
      * @return string
      */
-    public function detail(
-        $target = ""
-    )
+    public function detail($target = "")
     {
-        if(is_null($target)) {
+        if($target == "") {
             $data['status']     = 500;
             $data['message']    = "Url must a valid!";
             die($this->toJson($data));
@@ -165,6 +172,9 @@ class Cookpad
         $data['data'][0]['title'] = trim($content->find('h1.recipe-show__title')->text);
         $data['data'][0]['author'] = trim($content->find('span[itemprop="author"]')->text);
         $data['data'][0]['author_avatar'] = trim($content->find('img.avatar')->src);
+        $data['data'][0]['author_profile'] =
+            str_replace('/id/', '', $this->url).
+            trim($content->find('section[class="author-container"] a')->href);
         $data['data'][0]['description'] = trim($content->find('div.recipe-show__story p')->text);
         $data['data'][0]['image'] = trim($this->dom->find('.tofu_image img')->src);
         $data['data'][0]['likes'] = (int) trim($content->find('.recipe-show__metadata span')->text);
@@ -210,4 +220,278 @@ class Cookpad
         return $this->toJson($data);
     }
 
+    public function profile(
+        $target         = "",
+        $searchrecipe   = "",
+        $page           = 1
+    )
+    {
+        if($target == "") {
+            $data['status']     = 500;
+            $data['message']    = "Url must a valid!";
+            die($this->toJson($data));
+        }
+
+        $url = $this->url.$target;
+        $userurl = $url;
+        ($page > 1 || $searchrecipe != "")
+            ? $url .= "?page=" . $page . "&u=" . urlencode($searchrecipe)
+            : "";
+        $dom = $this->dom->load($url);
+
+        // When 404
+        if(count($dom->find('body.errors')) > 0){
+            $data['status']     = 404;
+            $data['message']    = "Url ".$url." not found!";
+            die($this->toJson($data));
+        }
+
+        $content = $dom->find('.main-container');
+        $usercontent = $this->dom->load($userurl);
+        $data['status']     = 200;
+        if($searchrecipe != "" && $searchrecipe != "*") {
+            $data['keyword'] = urlencode($searchrecipe);
+        }
+        $data['url'] = $url;
+
+        $data['page']['before']   =
+            (count($content->find('span[class="page"] a[rel="prev"]')) > 0)
+                ? (int) $content->find('span[class="page"] a[rel="prev"]')->text
+                : 1;
+        $data['page']['now']    =
+            (count($content->find('span[class="page current"]')) > 0)
+            ? (int) $content->find('span[class="page current"]')->text
+            : 1;
+        $data['page']['next']   =
+            (count($content->find('span[class="page"] a[rel="next"]')) > 0)
+                ? (int) $content->find('span[class="page"] a[rel="next"]')->text
+                : $data['page']['now'];
+
+        $data['profile'][0]['name'] = trim($content->find('h1[class="user-header__name"] a')->text);
+        $data['profile'][0]['avatar'] = trim($content->find('.user-header__avatar')->src);
+        $data['profile'][0]['banner'] = str_replace('\');', '', str_replace('background-image: url(\'', '', trim($content->find('.user-background__image')->style)));
+        $data['profile'][0]['description'] =
+            (count($usercontent->find('.user-header__profile')) > 0)
+                ? trim($usercontent->find('.user-header__profile')->text)
+                : "";
+        $data['profile'][0]['city'] =
+            (count($usercontent->find('div[class="user-header__location subtle"]')) > 0)
+                ? trim($usercontent->find('div[class="user-header__location subtle"]')->text)
+                : "";
+        $data['profile'][0]['recipes'] = intval(str_replace('.','', $content->find('.tab-list__count')[0]->text));
+        $data['profile'][0]['photos'] = intval(str_replace('.','', $content->find('.tab-list__count')[1]->text));
+        $data['profile'][0]['comments'] = intval(str_replace('.','', $content->find('.tab-list__count')[2]->text));
+        $data['profile'][0]['following'] =
+            (count($usercontent->find('div[class="user-header__follows-count"] a span')[0]) > 0)
+                ? intval(str_replace('.', '', $usercontent->find('div[class="user-header__follows-count"] a span')[0]->text))
+                : 0;
+        $data['profile'][0]['followers'] =
+            (count($usercontent->find('div[class="user-header__follows-count"] a span')[1]) > 0)
+                ? intval(str_replace('.', '', $usercontent->find('div[class="user-header__follows-count"] a span')[1]->text))
+                : 0;
+
+        foreach($content->find('li.recipe') as $key => $item) {
+            $itemurl = explode('/', $item->find('a')->href);
+            $data['data'][$key]['id'] = (int)explode('-', $itemurl[3])[0]; // ex: 12121-bawang-merah (12121)
+            $data['data'][$key]['title'] = trim($item->find('.recipe-title span')->text);
+            $data['data'][$key]['url'] = $this->url . $itemurl[2] . '/' . $itemurl[3]; // ex: [url]/[locate]/url
+            $data['data'][$key]['image'] = trim($item->find('img')->src);
+            $data['data'][$key]['author'] = trim($item->find('.subtle')->text);
+            $data['data'][$key]['author_avatar'] = trim($item->find('img.avatar')->src);
+            $data['data'][$key]['description'] = trim($item->find('.recipe__ingredients')->text);
+            $data['data'][$key]['duration'] =
+                (count($item->find('.icf--timer')) > 0)
+                    ? (trim($item->find('li')->text) == $data['data'][$key]['author'])
+                    ? trim($item->find('li')[1]->text)
+                    : trim($item->find('li')->text)
+                    : 0;
+            $data['data'][$key]['portion'] =
+                (count($item->find('.icf--user')) > 0)
+                    ? (trim($item->find('li')->text) == $data['data'][$key]['duration']) // diff time & portion
+                    ? trim($item->find('li')[1]->text)
+                    : trim($item->find('li')->text)
+                    : 1;
+        }
+
+        if(count($content->find('li.recipe')) < 1) {
+            $data['status'] = 404;
+            $data['message'] = "data recipes not found!";
+            $data['data'] = [];
+        }
+
+        return $this->toJson($data);
+    }
+
+
+    /**
+     * Search of Recipes
+     * @param string $keyword
+     * @param int $page
+     * @param int $limit
+     * @param bool $random
+     * @return string
+     */
+    public function search(
+        $keyword    = "",
+        $page       = 1,
+        $limit      = 0,
+        $random     = false
+    )
+    {
+        if(is_null($keyword)) {
+            $data['status'] = 500;
+            $data['message'] = "Search must with valid keywords!";
+            die($this->toJson($data));
+        }
+
+        if(is_int($keyword)) {
+            $data['status'] = 500;
+            $data['message'] = "Search must string, not number!";
+            die($this->toJson($data));
+        }
+
+        if(is_null($this->search)) {
+            $data['status'] = 500;
+            $data['message'] = "Search page must defined before. Example: new Cookpad->set('search', '/cari')";
+            die($this->toJson($data));
+        }
+
+        if(explode('/', $this->search)[0]) {
+            $data['status'] = 500;
+            $data['message'] = "Search page must have / (symbol) at first letter. Example: /search, /cari";
+            die($this->toJson($data));
+        }
+
+//        if(count(explode('/', $this->search)[1]) > 0) {
+//            $data['status'] = 500;
+//            $data['message'] = "Error! Keywords search dont containt / (symbol)";
+//            die($this->toJson($data));
+//        }
+
+        if(!is_int($page)) {
+            $data['status']     = 500;
+            $data['message']    = "Page must number!";
+            die($this->toJson($data));
+        }
+
+        $url = $this->url . str_replace('/', '', $this->search) . '/' . urlencode($keyword);
+        ($page > 1) ? $url .= "?page=" . $page : "";
+        $items = $this->dom->load($url);
+
+        // Not Found
+        if(count($items->find('.blank-slate__icon')) > 0) {
+            $data['status'] = 404;
+            $data['message'] = "Search with keywords '" . $keyword . "'";
+            if($page > 0) {
+                $data['message'] .= " at page " . $page  . " not found!";
+            }
+            $suggests = $items->find('ul[class="list-inline small"] li');
+            foreach ($suggests as $key => $suggest) {
+                $data['suggestion'][$key]['name'] = $suggest->find('a')->text;
+                $data['suggestion'][$key]['url'] = str_replace('/id/', '', $this->url).$suggest->find('a')->href;
+            }
+            die($this->toJson($data));
+        }
+
+        $pagination = $this->dom->find('.pagination');
+        $pagination_href = explode('?', $pagination->find('a')->getAttribute('href')); // ex: /id?page=2
+
+        $data['status']     = 200;
+        $data['keyword']     = $keyword;
+        $data['url']        = $url;
+        $data['page']['before']   =
+        (count($this->dom->find('span[class="page"] a[rel="prev"]')) > 0)
+            ? (int) $this->dom->find('span[class="page"] a[rel="prev"]')->text
+            : 1;
+        $data['page']['now']    = (int) $this->dom->find('span[class="page current"]')->text;
+        $data['page']['next']   =
+            (count($this->dom->find('span[class="page"] a[rel="next"]')) > 0)
+                ? (int) $this->dom->find('span[class="page"] a[rel="next"]')->text
+                : $data['page']['now'];
+        $data['total']      = count($this->dom->find('li.recipe'));
+        $data['total_all']      = intval(str_replace('.','', $this->dom->find('span[class="results-header__count subtle"]')->text));
+        ($random) ? $data['random'] = true : "";
+
+        if(count($items->find('.results-header__suggestion')) > 0) {
+            $data['typo'][0]['name'] = $items->find('.results-header__suggestion a')->text;
+            $data['typo'][0]['url'] = str_replace('/id/', '', $this->url).$items->find('.results-header__suggestion a')->href;
+        }
+
+        foreach($this->dom->find('li.recipe') as $key => $item){
+            $itemurl = explode('/', $item->find('a')->href);
+            $data['data'][$key]['id'] = (int) explode('-', $itemurl[3])[0]; // ex: 12121-bawang-merah (12121)
+            $data['data'][$key]['title'] = trim($item->find('.recipe-title span')->text);
+            $data['data'][$key]['url'] = $this->url.$itemurl[2].'/'.$itemurl[3]; // ex: [url]/[locate]/url
+            $data['data'][$key]['image'] = trim($item->find('img')->src);
+            $data['data'][$key]['author'] = trim($item->find('.subtle')->text);
+            $data['data'][$key]['author_avatar'] = trim($item->find('img.avatar')->src);
+            $data['data'][$key]['description'] = trim($item->find('.recipe__ingredients')->text);
+            $data['data'][$key]['duration'] =
+                (count($item->find('.icf--timer')) > 0)
+                    ? (trim($item->find('li')->text) == $data['data'][$key]['author'])
+                        ? trim($item->find('li')[1]->text)
+                        : trim($item->find('li')->text)
+                    : 0;
+            $data['data'][$key]['portion'] =
+                (count($item->find('.icf--user')) > 0)
+                    ? (trim($item->find('li')->text) == $data['data'][$key]['duration']) // diff time & portion
+                        ? trim($item->find('li')[1]->text)
+                        : trim($item->find('li')->text)
+                    : 1;
+
+            foreach ($this->dom->find('ul[class="list-inline small"] li a') as $key => $related) {
+                $data['related'][$key]['name'] = str_replace('</b>', '', str_replace('<b class="lighter">', '', $related->innerHtml));
+                $data['related'][$key]['url'] = str_replace('?event=search.related_search', '', str_replace('/'.$this->locate.'/', '', $this->url).$related->href);
+            }
+
+            // Limit
+            if($limit > 0) {
+                if($limit == $key+1) {
+                    break;
+                }
+            }
+        }
+
+        // Random
+        if($random) {
+            shuffle($data['data']);
+        }
+
+        return $this->toJson($data);
+    }
+
+
+    /**
+     * Method alternate for call all(), detail(), search()
+     * @param string $keyword
+     * @param int $page
+     * @param int $limit
+     * @param bool $random
+     * @return string
+     */
+    public function get(
+        $keyword    = "",
+        $page       = 1,
+        $limit      = 0,
+        $random     = false
+    )
+    {
+        $url = explode('/', $keyword);
+        $array_profile_url = array('users', 'pengguna', 'perfil', 'nguoi-su-dung', 'profil', 'مستخدمين', 'usuarios', '使用者', '사용자', 'utenti', 'كاربر', 'felhasznalok', 'brugere', 'kitchen');
+
+        if($keyword == "*") {
+            return $this->all($page, $limit, $random);
+        }
+        elseif(!is_null($keyword) && in_array($url[0], $array_profile_url) || in_array($url[1], $array_profile_url)) {
+            $limit = ($limit == 0) ? 1 : 0;
+            $page = ($page == 1) ? "*" : $page;
+            return $this->profile($keyword, $page, $limit); // (target, searchrecipe, page)
+        }
+        elseif(!is_null($keyword) && $url[1]) {
+            return $this->detail($keyword);
+        }
+        else {
+            return $this->search($keyword, $page, $limit, $random);
+        }
+    }
 }
