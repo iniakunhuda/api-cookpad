@@ -74,6 +74,13 @@ class Cookpad
         }
         $url = ($page == 1) ? $this->url : $this->url.'?page='.$page;
 
+        // When 404
+        if(count($this->dom->find('body.errors')) > 0){
+            $data['status']     = 404;
+            $data['message']    = "Url ".$url." not found!";
+            die($this->toJson($data));
+        }
+
         $this->dom->load($url);
         $data       = array();
         $items =
@@ -114,14 +121,14 @@ class Cookpad
             $data['data'][$key]['duration'] =
                 (count($item->find('.icf--timer')) > 0)
                     ? (trim($item->find('li')->text) == $data['data'][$key]['author'])
-                        ? trim($item->find('li')[1]->text)
-                        : trim($item->find('li')->text)
+                    ?  isset($item->find('li')[1]) ? trim($item->find('li')[1]->text) : 0
+                    : trim($item->find('li')->text)
                     : 0;
             $data['data'][$key]['portion'] =
                 (count($item->find('.icf--user')) > 0)
                     ? (trim($item->find('li')->text) == $data['data'][$key]['duration']) // diff time & portion
-                        ? trim($item->find('li')[1]->text)
-                        : trim($item->find('li')->text)
+                    ? isset($item->find('li')[1]) ? trim($item->find('li')[1]->text) : 1
+                    : trim($item->find('li')->text)
                     : 1;
 
             // Limit
@@ -173,7 +180,7 @@ class Cookpad
         $data['data'][0]['author'] = trim($content->find('span[itemprop="author"]')->text);
         $data['data'][0]['author_avatar'] = trim($content->find('img.avatar')->src);
         $data['data'][0]['author_profile'] =
-            str_replace('/id/', '', $this->url).
+            str_replace('/'.$this->locate.'/', '', $this->url).
             trim($content->find('section[class="author-container"] a')->href);
         $data['data'][0]['description'] = trim($content->find('div.recipe-show__story p')->text);
         $data['data'][0]['image'] = trim($this->dom->find('.tofu_image img')->src);
@@ -220,6 +227,14 @@ class Cookpad
         return $this->toJson($data);
     }
 
+
+    /**
+     * View user profile
+     * @param string $target
+     * @param string $searchrecipe
+     * @param int $page
+     * @return string
+     */
     public function profile(
         $target         = "",
         $searchrecipe   = "",
@@ -302,14 +317,14 @@ class Cookpad
             $data['data'][$key]['duration'] =
                 (count($item->find('.icf--timer')) > 0)
                     ? (trim($item->find('li')->text) == $data['data'][$key]['author'])
-                    ? trim($item->find('li')[1]->text)
+                    ?  isset($item->find('li')[1]) ? trim($item->find('li')[1]->text) : 0
                     : trim($item->find('li')->text)
                     : 0;
             $data['data'][$key]['portion'] =
                 (count($item->find('.icf--user')) > 0)
                     ? (trim($item->find('li')->text) == $data['data'][$key]['duration']) // diff time & portion
-                    ? trim($item->find('li')[1]->text)
-                    : trim($item->find('li')->text)
+                        ? isset($item->find('li')[1]) ? trim($item->find('li')[1]->text) : 1
+                        : trim($item->find('li')->text)
                     : 1;
         }
 
@@ -317,6 +332,73 @@ class Cookpad
             $data['status'] = 404;
             $data['message'] = "data recipes not found!";
             $data['data'] = [];
+        }
+
+        return $this->toJson($data);
+    }
+
+
+    /**
+     * View Recook
+     * @param string $target
+     * @return string
+     */
+    public function recook($target = "")
+    {
+        if($target == "") {
+            $data['status']     = 500;
+            $data['message']    = "Url must a valid!";
+            die($this->toJson($data));
+        }
+
+        $url = $this->url.$target;
+        $dom = $this->dom->load($url);
+
+        // When 404
+        if(count($dom->find('body.errors')) > 0){
+            $data['status']     = 404;
+            $data['message']    = "Url ".$url." not found!";
+            die($this->toJson($data));
+        }
+        $content = $dom->find('.main-container');
+        $data['status'] = 200;
+        $data['url'] = $url;
+
+        $data['data'][0]['title'] = $content->find('h4[class="recipe-title"]')->text;
+        $data['data'][0]['url'] = str_replace('/'.$this->locate.'/', '', $this->url).$content->find('a[class="commented-recipe"]')->href;
+        $data['data'][0]['image'] = $content->find('.media__img img')->src;
+        $data['data'][0]['author'] = $content->find('div[class="commented-recipe__user"]')->text;
+        $contenttime = $dom->find('.recipe__metadata');
+        $data['data'][0]['duration'] =
+            (count($contenttime->find('.icf--timer')) > 0)
+                ? (trim($contenttime->find('li')->text) == $data['data'][0]['author'])
+                    ?  isset($contenttime->find('li')[1])
+                        ? trim($contenttime->find('li')[1]->text) : 0
+                    : trim($contenttime->find('li')->text)
+                : 0;
+        $data['data'][0]['portion'] =
+            (count($contenttime->find('.icf--user')) > 0)
+                ? (trim($contenttime->find('li')->text) == $data['data'][0]['duration']) // diff time & portion
+                    ? isset($contenttime->find('li')[1])
+                        ? trim($contenttime->find('li')[1]->text) : 1
+                    : trim($contenttime->find('li')->text)
+                : 1;
+
+        $data['recooks'][0]['name'] = trim($content->find('div[class="split-header__main"] span a')->text);
+        $data['recooks'][0]['url'] = str_replace('/'.$this->locate.'/', '', $this->url).$content->find('div[class="split-header__main"] span a')->href;
+        $data['recooks'][0]['image'] = trim($content->find('#comment_image')->src);
+        $data['recooks'][0]['date'] = trim($content->find('div[class="split-header__secondary small subtle"] time')->text);
+        $data['recooks'][0]['message'] = trim($content->find('div[data-state="viewing"]')->text);
+        $data['recooks'][0]['likes'] = (int) trim($content->find('li[class="likes-count"]')->text);
+
+        if(isset($content->find('div[class="comment-reply media"]')[0])){
+            foreach($content->find('div[class="comment-reply media"]') as $index => $reply) {
+                $data['recooks'][0]['comments'][$index]['name'] = trim($reply->find('div[class="media__body comment-reply__body"] div a')->text);
+                $data['recooks'][0]['comments'][$index]['url'] = str_replace('/'.$this->locate.'/', '', $this->url).$reply->find('div[class="media__body comment-reply__body"] div a')->href;
+                $data['recooks'][0]['comments'][$index]['image'] = $reply->find('div[class="comment-reply__img media__img"] img')->src;
+                $data['recooks'][0]['comments'][$index]['message'] = trim($reply->find('div[data-state="viewing"]')->text);
+                $data['recooks'][0]['comments'][$index]['likes'] = (int) trim($reply->find('li[class="likes-count"]')->text);
+            }
         }
 
         return $this->toJson($data);
@@ -378,6 +460,13 @@ class Cookpad
         ($page > 1) ? $url .= "?page=" . $page : "";
         $items = $this->dom->load($url);
 
+        // When 404
+        if(count($this->dom->find('body.errors')) > 0){
+            $data['status']     = 404;
+            $data['message']    = "Url ".$url." not found!";
+            die($this->toJson($data));
+        }
+
         // Not Found
         if(count($items->find('.blank-slate__icon')) > 0) {
             $data['status'] = 404;
@@ -388,7 +477,7 @@ class Cookpad
             $suggests = $items->find('ul[class="list-inline small"] li');
             foreach ($suggests as $key => $suggest) {
                 $data['suggestion'][$key]['name'] = $suggest->find('a')->text;
-                $data['suggestion'][$key]['url'] = str_replace('/id/', '', $this->url).$suggest->find('a')->href;
+                $data['suggestion'][$key]['url'] = str_replace('/'.$this->locate.'/', '', $this->url).$suggest->find('a')->href;
             }
             die($this->toJson($data));
         }
@@ -412,9 +501,9 @@ class Cookpad
         $data['total_all']      = intval(str_replace('.','', $this->dom->find('span[class="results-header__count subtle"]')->text));
         ($random) ? $data['random'] = true : "";
 
-        if(count($items->find('.results-header__suggestion')) > 0) {
+        if(count($items->find('div[class="results-header__suggestion"]')) > 0) {
             $data['typo'][0]['name'] = $items->find('.results-header__suggestion a')->text;
-            $data['typo'][0]['url'] = str_replace('/id/', '', $this->url).$items->find('.results-header__suggestion a')->href;
+            $data['typo'][0]['url'] = str_replace('/'.$this->locate.'/', '', $this->url).$items->find('.results-header__suggestion a')->href;
         }
 
         foreach($this->dom->find('li.recipe') as $key => $item){
@@ -429,14 +518,14 @@ class Cookpad
             $data['data'][$key]['duration'] =
                 (count($item->find('.icf--timer')) > 0)
                     ? (trim($item->find('li')->text) == $data['data'][$key]['author'])
-                        ? trim($item->find('li')[1]->text)
-                        : trim($item->find('li')->text)
+                    ?  isset($item->find('li')[1]) ? trim($item->find('li')[1]->text) : 0
+                    : trim($item->find('li')->text)
                     : 0;
             $data['data'][$key]['portion'] =
                 (count($item->find('.icf--user')) > 0)
                     ? (trim($item->find('li')->text) == $data['data'][$key]['duration']) // diff time & portion
-                        ? trim($item->find('li')[1]->text)
-                        : trim($item->find('li')->text)
+                    ? isset($item->find('li')[1]) ? trim($item->find('li')[1]->text) : 1
+                    : trim($item->find('li')->text)
                     : 1;
 
             foreach ($this->dom->find('ul[class="list-inline small"] li a') as $key => $related) {
@@ -478,6 +567,7 @@ class Cookpad
     {
         $url = explode('/', $keyword);
         $array_profile_url = array('users', 'pengguna', 'perfil', 'nguoi-su-dung', 'profil', 'مستخدمين', 'usuarios', '使用者', '사용자', 'utenti', 'كاربر', 'felhasznalok', 'brugere', 'kitchen');
+        $array_recook_url = array('recook');
 
         if($keyword == "*") {
             return $this->all($page, $limit, $random);
@@ -486,6 +576,9 @@ class Cookpad
             $limit = ($limit == 0) ? 1 : 0;
             $page = ($page == 1) ? "*" : $page;
             return $this->profile($keyword, $page, $limit); // (target, searchrecipe, page)
+        }
+        elseif(!is_null($keyword) && in_array($url[0], $array_recook_url) || in_array($url[1], $array_recook_url)) {
+            return $this->recook($keyword); // (target)
         }
         elseif(!is_null($keyword) && $url[1]) {
             return $this->detail($keyword);
