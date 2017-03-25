@@ -74,13 +74,6 @@ class Cookpad
         }
         $url = ($page == 1) ? $this->url : $this->url.'?page='.$page;
 
-        // When 404
-        if(count($this->dom->find('body.errors')) > 0){
-            $data['status']     = 404;
-            $data['message']    = "Url ".$url." not found!";
-            die($this->toJson($data));
-        }
-
         $this->dom->load($url);
         $data       = array();
         $items =
@@ -89,6 +82,13 @@ class Cookpad
             : $this->dom->find('.recipe');
         $pagination = $this->dom->find('.pagination');
         $pagination_href = explode('?', $pagination->find('a')->getAttribute('href')); // ex: /id?page=2
+
+        // When 404
+        if(count($this->dom->find('body.errors')) > 0){
+            $data['status']     = 404;
+            $data['message']    = "Url ".$url." not found!";
+            die($this->toJson($data));
+        }
 
         $data['status']     = 200;
         $data['url']        = $url;
