@@ -11,10 +11,7 @@ echo $cookpad->get('recook/1527234');
 //echo $cookpad->get('resep/1408010');
 //echo $cookpad->detail('resep/1453533');
 
-//TODO: Detail belum ada created_at
 
 /*TODO: IDE!!
-
     - Log untuk mendapatkan pencarian makanan terbanyak melalui API Cookpadcom
-
 */
