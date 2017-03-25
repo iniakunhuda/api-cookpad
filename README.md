@@ -309,4 +309,4 @@ $cookpad->get($same_with_params_methods_at_top);
 + Log message and count data request.
 + thinking..
 
-### Thanks! :love:
+### Thanks! :heart:
