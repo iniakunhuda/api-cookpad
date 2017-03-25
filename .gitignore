@@ -1,7 +1,2 @@
-._*
-.~lock.*
-.buildpath
-.DS_Store
+vendor/*
 .idea/*
-.project
-.settings

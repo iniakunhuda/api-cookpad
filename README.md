@@ -1,4 +1,4 @@
-# api-cookpad
+# Cookpad API
 Unofficial Cookpad API for developer
 
 <br><blockquote>
