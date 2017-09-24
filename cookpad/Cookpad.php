@@ -217,12 +217,14 @@ class Cookpad
             $data['data'][0]['recooks'][$key]['pict'] = trim($recook->find('img.side-swipe__image')->src);
         }
 
-        $relateds = $this->dom->find('div.document__panel ul.list-inline li');
-
-        foreach ($relateds as $key => $related) {
-            $data['related'][$key]['key'] = trim($related->find('a')->text);
-            $data['related'][$key]['url'] = str_replace('/'.$this->locate.'/', '', $this->url).trim($related->find('a')->href);
-        }
+        // if($this->dom->find('div.document__panel ul.list-inline li')){
+        //   $relateds = $this->dom->find('div.document__panel ul.list-inline li');
+        //
+        //   foreach ($relateds as $key => $related) {
+        //       $data['related'][$key]['key'] = trim($related->find('a')->text);
+        //       $data['related'][$key]['url'] = str_replace('/'.$this->locate.'/', '', $this->url).trim($related->find('a')->href);
+        //   }
+        // }
 
         return $this->toJson($data);
     }
@@ -506,7 +508,7 @@ class Cookpad
             $data['typo'][0]['url'] = str_replace('/'.$this->locate.'/', '', $this->url).$items->find('.results-header__suggestion a')->href;
         }
 
-        foreach($this->dom->find('li.recipe') as $key => $item){
+        foreach($items->find('li[class="wide-card ranked-list__item"]') as $key => $item){
             $itemurl = explode('/', $item->find('a')->href);
             $data['data'][$key]['id'] = (int) explode('-', $itemurl[3])[0]; // ex: 12121-bawang-merah (12121)
             $data['data'][$key]['title'] = trim($item->find('.recipe-title span')->text);
@@ -514,7 +516,7 @@ class Cookpad
             $data['data'][$key]['image'] = trim($item->find('img')->src);
             $data['data'][$key]['author'] = trim($item->find('.subtle')->text);
             $data['data'][$key]['author_avatar'] = trim($item->find('img.avatar')->src);
-            $data['data'][$key]['description'] = trim($item->find('.recipe__ingredients')->text);
+            $data['data'][$key]['description'] = trim($item->find('.wide-card__body')->text);
             $data['data'][$key]['duration'] =
                 (count($item->find('.icf--timer')) > 0)
                     ? (trim($item->find('li')->text) == $data['data'][$key]['author'])
