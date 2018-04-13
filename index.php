@@ -12,3 +12,4 @@ echo $cookpad->search('kukus surabaya');
 //echo $cookpad->profile('pengguna/4855359');
 //echo $cookpad->get('resep/1408010');
 //echo $cookpad->detail('resep/1453533');
+

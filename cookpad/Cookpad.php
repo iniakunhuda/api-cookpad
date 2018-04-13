@@ -10,6 +10,7 @@ class Cookpad
 
     public function __construct($phphtmlparser)
     {
+        ini_set('display_errors', 1);
         $this->dom = $phphtmlparser;
         $this->url = 'https://cookpad.com/'.$this->locate.'/';
     }
@@ -494,7 +495,7 @@ class Cookpad
         (count($this->dom->find('span[class="page"] a[rel="prev"]')) > 0)
             ? (int) $this->dom->find('span[class="page"] a[rel="prev"]')->text
             : 1;
-        $data['page']['now']    = (int) $this->dom->find('span[class="page current"]')->text;
+        $data['page']['now']    = (int) $this->dom->find('span[class="pagination__page page current"]')->text;
         $data['page']['next']   =
             (count($this->dom->find('span[class="page"] a[rel="next"]')) > 0)
                 ? (int) $this->dom->find('span[class="page"] a[rel="next"]')->text
