@@ -194,7 +194,7 @@ class Cookpad
             $data['data'][0]['ingredients'][$key]['name'] = trim(trim($item->find('span.ingredient__quantity')->text) . ' ' . trim($item->find('div.ingredient__details')->text));
         }
 
-        $steps = $content->find('li.step');
+        $steps = $content->find('steps');
 
         foreach ($steps as $key => $step) {
             $data['data'][0]['steps'][$key]['name'] = trim($step->find('p.step__text')->text);
@@ -366,10 +366,10 @@ class Cookpad
         $data['status'] = 200;
         $data['url'] = $url;
 
-        $data['data'][0]['title'] = $content->find('h4[class="recipe-title"]')->text;
-        $data['data'][0]['url'] = str_replace('/'.$this->locate.'/', '', $this->url).$content->find('a[class="commented-recipe"]')->href;
+        $data['data'][0]['title'] = str_replace('/'.$this->locate.'/', '', $this->url).$content->find('a[class="recipe-title strong small"]')->text;
+        $data['data'][0]['url'] = str_replace('/'.$this->locate.'/', '', $this->url).$content->find('a[class="link-unstyled"]')->href;
         $data['data'][0]['image'] = $content->find('.media__img img')->src;
-        $data['data'][0]['author'] = $content->find('div[class="commented-recipe__user"]')->text;
+        $data['data'][0]['author'] = str_replace('/'.$this->locate.'/', '', $this->url).$content->find('a[class="link-unstyled"]')->text;
         $contenttime = $dom->find('.recipe__metadata');
         $data['data'][0]['duration'] =
             (count($contenttime->find('.icf--timer')) > 0)
@@ -494,7 +494,7 @@ class Cookpad
         (count($this->dom->find('span[class="page"] a[rel="prev"]')) > 0)
             ? (int) $this->dom->find('span[class="page"] a[rel="prev"]')->text
             : 1;
-        $data['page']['now']    = (int) $this->dom->find('span[class="page current"]')->text;
+        $data['page']['now']    = (int) $this->dom->find('span[class="pagination__page page current"]')->text;
         $data['page']['next']   =
             (count($this->dom->find('span[class="page"] a[rel="next"]')) > 0)
                 ? (int) $this->dom->find('span[class="page"] a[rel="next"]')->text
