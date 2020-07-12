@@ -1,3 +1,8 @@
+# Jul 2020
+API can't be used anymore
+
+-------------
+
 # Cookpad API
 Unofficial Cookpad API for developer
 
